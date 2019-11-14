@@ -1,0 +1,47 @@
+---
+- hosts: 127.0.0.1
+
+  tasks:
+    - name: Install required system packages
+      apt: name={{ item }} state=latest update_cache=yes
+      loop: [ 'apt-transport-https', 'ca-certificates', 'curl', 'software-properties-common', 'python3-pip', 'virtualenv', 'python3-setuptools']
+
+    - name: Add Docker GPG apt Key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker Repository
+      apt_repository:
+        repo: deb https://download.docker.com/linux/ubuntu bionic stable
+        state: present
+
+    - name: Update apt and install docker-ce
+      apt: update_cache=yes name=docker-ce state=latest
+
+    - name: Install Docker Module for Python
+      pip:
+        name: docker
+
+    - name: Create volume dir
+      file:
+        path: /tmp/vol
+        state: directory
+        mode: '0755'
+
+    - name: Start ffmpeg
+      docker_container:
+        name: ffmpeg
+        image: jrottenberg/ffmpeg
+        volumes:
+          - /tmp/vol:/vol
+        command: -i rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mov -y -update 1 /vol/bunny_latest.jpg
+
+    - name: Start webserver
+      docker_container:
+        name: nginx
+        image: nginx
+        volumes:
+          - /tmp/vol:/usr/share/nginx/html
+        ports:
+          - "8088:80"
